@@ -52,11 +52,11 @@
 </template>
 
 <script setup lang="js">
-import {reactive, ref, watch} from 'vue'
+import {reactive, ref, watch, onMounted} from 'vue'
 import { UToast } from 'undraw-ui'
 import {PawOutline} from '@vicons/ionicons5'
 import emoji from '../../assets/emoji'
-import { reply, comment } from '../../assets/comment.js'
+import { getGuestbookApi, createGuestbookApi } from '../../utils/api'
 //获取用户浏览器信息方法
 //import {userAgentObj} from '../../utils/win'
 import { v4 as uuidv4 } from "uuid";
@@ -100,11 +100,38 @@ const getUser = (uid, show) => {
 
 }
 //获取所有留言
-const get_LeaveAll=()=>{
-  config.comments=comment;
+const get_LeaveAll=async()=>{
+  try {
+    loadingCard.value = true;
+    const response = await getGuestbookApi({
+      page: pageData.page,
+      limit: pageData.limit
+    });
+    
+    if (response.data.ec === '0') {
+      config.comments = response.data.data.comments;
+      config.total = response.data.data.pagination.total;
+      
+      // 检查是否还有更多数据
+      if (response.data.data.comments.length < pageData.limit) {
+        loadingEnd.value = true;
+      }
+    } else {
+      message.error('获取留言失败: ' + response.data.em);
+    }
+  } catch (error) {
+    message.error('网络错误，无法获取留言');
+    console.error('获取留言失败:', error);
+  } finally {
+    loadingCard.value = false;
+  }
 }
 
-get_LeaveAll();
+// 组件挂载时获取留言
+onMounted(() => {
+  get_LeaveAll();
+});
+
 //监听滚动条
 watch(() => distanceToBottom.value, (newValue, oldValue) => {
   //如果滚动到了底部
@@ -116,28 +143,52 @@ watch(() => distanceToBottom.value, (newValue, oldValue) => {
 
 
 // 提交留言事件
-const submit = ({ content, parentId, files, finish, reply, mentionList}) => {
-  let contentImg = files.map(e => createObjectURL(e)).join(', ')
-  let comment = {
-    id:uuidv4(),
-    parentId: parentId,
-    uid: config.user.id,
-    address: '地址',
-    content: content,
-    likes: 0,
-    createTime: '刚刚',
-    contentImg: contentImg,
-    user: {
-      username: config.user.username,
-      avatar: config.user.avatar,
-      level: 6,
-      homeLink: `1`
-    },
-    reply: null
+const submit = async ({ content, parentId, files, finish, reply, mentionList}) => {
+  try {
+    let contentImg = files.map(e => createObjectURL(e)).join(', ')
+    
+    const response = await createGuestbookApi({
+      content: content,
+      parentId: parentId
+    });
+    
+    if (response.data.ec === '0') {
+      const newComment = response.data.data;
+      // 格式化新留言的数据结构
+      const formattedComment = {
+        id: newComment.id,
+        parentId: newComment.parentId,
+        uid: newComment.userId,
+        address: newComment.address,
+        content: newComment.content,
+        likes: newComment.likes,
+        createTime: newComment.createTime,
+        contentImg: newComment.contentImg,
+        user: {
+          username: newComment.username,
+          avatar: newComment.avatar,
+          level: newComment.userPowerId >= 999 ? 6 : 1,
+          homeLink: `1`
+        },
+        reply: []
+      }
+      
+      finish(formattedComment)
+      UToast({ message: '留言成功!', type: 'success' })
+      
+      // 重新加载留言列表
+      pageData.page = 1;
+      loadingEnd.value = false;
+      get_LeaveAll();
+    } else {
+      UToast({ message: '留言失败: ' + response.data.em, type: 'error' })
+      finish(null)
+    }
+  } catch (error) {
+    console.error('提交留言失败:', error);
+    UToast({ message: '网络错误，留言失败', type: 'error' })
+    finish(null)
   }
-  finish(comment)
-  UToast({ message: '评论成功!', type: 'success' })
-
 }
 
 // 删除评论事件
@@ -175,15 +226,37 @@ const page = (pageNum, pageSize, arr) => {
   return newArr
 }
 
+// 创建文件URL
+const createObjectURL = (file) => {
+  return URL.createObjectURL(file);
+}
+
 //回复分页
-const replyPage = (parentId, pageNum, pageSize, finish) => {
-  let tmp = {
-    total: reply.total,
-    list: page(pageNum, pageSize, reply.list)
+const replyPage = async (parentId, pageNum, pageSize, finish) => {
+  try {
+    const response = await getGuestbookApi({
+      page: pageNum,
+      limit: pageSize
+    });
+    
+    if (response.data.ec === '0') {
+      // 过滤出当前留言的回复
+      const replies = response.data.data.comments.filter(comment => 
+        comment.parentId === parentId
+      );
+      
+      const tmp = {
+        total: replies.length,
+        list: page(pageNum, pageSize, replies)
+      }
+      finish(tmp)
+    } else {
+      finish({ total: 0, list: [] })
+    }
+  } catch (error) {
+    console.error('获取回复失败:', error);
+    finish({ total: 0, list: [] })
   }
-  setTimeout(() => {
-    finish(tmp)
-  }, 200)
 }
 
 </script>
