@@ -148,6 +148,41 @@ export const initDatabase = () => {
                 console.error('插入默认用户失败:', err.message);
               } else {
                 console.log('✅ 默认用户创建成功 (用户名: admin, 密码: admin123)');
+                
+                // 添加示例日记数据
+                const sampleDiaries = [
+                  {
+                    id: 'diary_' + Date.now(),
+                    content: '# 欢迎来到我的博客！\n\n这是我的第一篇随笔，记录一些日常的思考和感悟。\n\n**技术栈：**\n- Vue 3 + TypeScript\n- Naive UI\n- Node.js + Express\n- SQLite\n\n希望这个博客能成为我记录成长的地方！',
+                    user_id: defaultUser.id
+                  },
+                  {
+                    id: 'diary_' + (Date.now() + 1),
+                    content: '## 今日学习总结\n\n今天学习了Vue 3的组合式API，感觉比选项式API更加灵活。\n\n**主要收获：**\n- setup函数的使用\n- 响应式系统的改进\n- Composition API的优势\n\n继续加油！💪',
+                    user_id: defaultUser.id
+                  },
+                  {
+                    id: 'diary_' + (Date.now() + 2),
+                    content: '### 项目进展\n\n博客系统基本功能已经完成：\n- ✅ 文章管理\n- ✅ 留言板\n- ✅ 随笔功能\n- ✅ 用户认证\n\n接下来需要完善：\n- 文章分类\n- 搜索功能\n- 主题切换\n\n一步步来，不急不躁。',
+                    user_id: defaultUser.id
+                  }
+                ];
+                
+                const insertDiarySql = 'INSERT OR IGNORE INTO diaries (id, content, user_id) VALUES (?, ?, ?)';
+                let diariesInserted = 0;
+                
+                sampleDiaries.forEach((diary) => {
+                  db.run(insertDiarySql, [diary.id, diary.content, diary.user_id], (err) => {
+                    if (err) {
+                      console.error('插入示例日记失败:', err.message);
+                    } else {
+                      diariesInserted++;
+                      if (diariesInserted === sampleDiaries.length) {
+                        console.log(`✅ 成功添加 ${diariesInserted} 条示例日记`);
+                      }
+                    }
+                  });
+                });
               }
               resolve();
             });

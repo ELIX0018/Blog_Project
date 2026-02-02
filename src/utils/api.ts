@@ -15,7 +15,7 @@ export const deleteArticleApi = (id: string) => del(`/api/articles/${id}`);
 export const likeArticleApi = (id: string) => post(`/api/articles/${id}/like`);
 
 // 日记相关接口
-export const getDiariesApi = (params: any) => get('/api/diaries', { params });
+export const getDiariesApi = (params: any) => get('/api/diaries', params);
 export const getDiaryByIdApi = (id: string) => get(`/api/diaries/${id}`);
 export const createDiaryApi = (data: any) => post('/api/diaries', data);
 export const updateDiaryApi = (id: string, data: any) => put(`/api/diaries/${id}`, data);

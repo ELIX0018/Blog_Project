@@ -6,12 +6,12 @@
       <template #default>
         <n-thing >
           <template  #avatar>
-            <n-avatar src="https://img.zhangpingguo.com/AppleBlog/logo/logo.jpg">
+            <n-avatar :src="diary.userHead || 'https://img.zhangpingguo.com/AppleBlog/logo/logo.jpg'">
             </n-avatar>
           </template>
           <template #header >
            <div style="padding-top: 5px">
-             Apple
+             {{ diary.userName || 'Apple' }}
              <n-tag  size="small"  type="error" :bordered="false">
                站长
              </n-tag>
@@ -20,7 +20,7 @@
 
           <template #header-extra>
             <n-text depth="3">
-              20240108
+              {{ formatDate(diary.diaryDate) }}
             </n-text>
 
           </template>
@@ -29,9 +29,9 @@
               embedded
               :bordered="false"
           >
-          <MdPreview style="background: none" :editorId="'editor'+1"
+          <MdPreview style="background: none" :editorId="'editor' + index"
                           :theme="isdarkTheme ? 'dark' : 'light'"
-                          v-model="diaryContent" />
+                          :modelValue="diary.content" />
           </n-card>
         </n-thing>
       </template>
@@ -39,14 +39,36 @@
 </template>
 
 <script setup lang="ts">
-import {ref} from 'vue'
+import { computed } from 'vue'
 import {VaeStore} from "../../store";
 import {storeToRefs} from "pinia";
 import {MdPreview} from 'md-editor-v3';
 import 'md-editor-v3/lib/style.css';
+
+interface Props {
+  diary: any;
+  index: number;
+}
+
+const props = defineProps<Props>();
+
 const store = VaeStore();
 let {clientWidth,isdarkTheme} = storeToRefs(store);
-const diaryContent=ref('欢迎访问：https://www.zhangpingguo.com/')
+
+// 格式化日期
+const formatDate = (dateString: string) => {
+  if (!dateString) return '未知日期';
+  
+  try {
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}${month}${day}`;
+  } catch (error) {
+    return '未知日期';
+  }
+}
 </script>
 
 <style scoped>
