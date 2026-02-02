@@ -1,7 +1,7 @@
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../config/database.js';
-import { authenticateToken, optionalAuth } from '../middleware/auth.js';
+import { authenticateToken, optionalAuth, requireAdmin } from '../middleware/auth.js';
 import { validateDiary, validatePagination } from '../middleware/validation.js';
 
 const router = express.Router();
@@ -110,8 +110,8 @@ router.get('/:id', optionalAuth, (req, res) => {
   });
 });
 
-// 创建日记
-router.post('/', authenticateToken, validateDiary, (req, res) => {
+// 创建日记（仅管理员）
+router.post('/', authenticateToken, requireAdmin, validateDiary, (req, res) => {
   const { content } = req.body;
   const diaryId = `diary_${uuidv4()}`;
 
