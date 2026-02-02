@@ -3,6 +3,30 @@
    <n-grid :cols="6" >
     <n-gi style="min-height: 100vh" :offset="clientWidth>1075?1:0" :span="clientWidth>1075?4:6">
       <n-card :embedded="isdarkTheme" :bordered="!isdarkTheme">
+        <!-- 管理员发布界面 -->
+        <div v-if="userInfo.userName === 'admin'" style="margin-bottom: 20px;">
+          <n-card :embedded="isdarkTheme" :bordered="!isdarkTheme" style="margin-bottom: 20px;">
+            <n-form :model="formData" label-placement="top">
+              <n-form-item label="随笔内容">
+                <n-input
+                  v-model:value="formData.content"
+                  type="textarea"
+                  :rows="5"
+                  placeholder="请输入随笔内容..."
+                  :autosize="{ minRows: 5, maxRows: 10 }"
+                />
+              </n-form-item>
+              <n-form-item>
+                <n-space justify="end">
+                  <n-button type="primary" @click="publishDiary" :loading="publishing">
+                    发布随笔
+                  </n-button>
+                </n-space>
+              </n-form-item>
+            </n-form>
+          </n-card>
+        </div>
+        <!-- 随笔列表 -->
         <n-timeline size="large">
           <template v-if="loadingCard">
             <n-skeleton v-for="n in 3" :key="n" height="100px" style="margin-bottom: 20px" />
@@ -43,19 +67,23 @@ import DiaryModule from '../components/Diary/DiaryModule.vue';
 import {PawOutline} from '@vicons/ionicons5'
 import {VaeStore} from "../store";
 //获取后端方法
-import { getDiariesApi } from '../utils/api'
+import { getDiariesApi, createDiaryApi } from '../utils/api'
 import {storeToRefs} from "pinia";
 import {inject, onActivated, reactive, ref, watch, onMounted} from "vue";
 import {useMessage} from "naive-ui";
 import {onBeforeRouteLeave} from "vue-router";
 const store = VaeStore();
-let {clientWidth,distanceToBottom,distanceToTop,isdarkTheme} = storeToRefs(store);
+let {clientWidth,distanceToBottom,distanceToTop,isdarkTheme, userInfo} = storeToRefs(store);
 const pageData=reactive({page:1,limit:8,apple:'1'});
 const message = useMessage()
 
 const diaryList = ref<any[]>([]);
 const loadingCard = ref(true);
 const loadingEnd = ref(false);
+const publishing = ref(false);
+const formData = reactive({
+  content: ''
+});
 
 //获取所有日记
 const get_DiarysAll = async () => {
@@ -89,6 +117,39 @@ const get_DiarysAll = async () => {
     loadingCard.value = false;
   }
 }
+
+// 发布随笔
+const publishDiary = async () => {
+  if (!formData.content.trim()) {
+    message.warning('请输入随笔内容');
+    return;
+  }
+
+  publishing.value = true;
+  try {
+    const response = await createDiaryApi({
+      content: formData.content
+    });
+
+    if (response && response.ec === '0') {
+      message.success('随笔发布成功');
+      formData.content = '';
+      // 刷新随笔列表
+      pageData.page = 1;
+      loadingEnd.value = false;
+      await get_DiarysAll();
+    } else {
+      const errorMsg = response ? response.em : '未知错误';
+      message.error('发布随笔失败: ' + errorMsg);
+    }
+  } catch (error: any) {
+    console.error('发布随笔失败:', error);
+    const errorMsg = error?.response?.data?.em || error?.message || '网络错误，无法发布随笔';
+    message.error(errorMsg);
+  } finally {
+    publishing.value = false;
+  }
+};
 
 // 组件挂载时获取日记
 onMounted(() => {
